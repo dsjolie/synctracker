@@ -1,0 +1,10 @@
+# Module files are third-party compositions; test tracks live in ../mods/
+*.mod
+*.s3m
+*.xm
+*.it
+*.mptm
+
+node_modules/
+.DS_Store
+Thumbs.db

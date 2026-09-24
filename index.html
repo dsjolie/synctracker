@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SyncTracker</title>
+<style>
+  body { margin: 0; padding: 16px; background: #111; color: #ddd; font: 14px/1.4 monospace; }
+  button, input { font: inherit; }
+  #status { margin: 12px 0; }
+  #row { white-space: pre; color: #8f8; }
+</style>
+</head>
+<body>
+<h1>SyncTracker</h1>
+<p>
+  <input type="file" id="file" accept=".mod,.s3m,.xm,.it,.mptm">
+  <button id="play" disabled>Play</button>
+  <button id="pause" disabled>Pause</button>
+</p>
+<p>Or load by URL: <code>?mod=&lt;url&gt;</code></p>
+<div id="status">No module loaded.</div>
+<div id="row"></div>
+<script type="module" src="main.js"></script>
+</body>
+</html>
