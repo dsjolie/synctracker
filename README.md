@@ -46,14 +46,15 @@ Plain ES modules, no build step. Serve the folder over HTTP (or HTTPS for a head
 `index.html`. Choose or drop a module file, pick one from the library, or pass one by URL:
 `index.html?mod=<url>`. Drag to look around, scroll to zoom, space to pause.
 
-On Raven the app is a static at `/s/synctracker/`, with local modules at
-`/s/synctracker-mods/`, e.g.
-`https://<raven>:3443/s/synctracker/?mod=../synctracker-mods/k_jose_-_energy.s3m`.
+WebXR and the audio worklet need a secure context: `localhost` works for development, a
+headset needs HTTPS.
 
 ### Library
 
-The library panel shows a folder tree from an `index.json`, loaded from
-`../synctracker-mods/index.json` by default or `?library=<url>`. Write it with
+The library panel shows a folder tree from an `index.json`, loaded from `mods/index.json`
+(next to `index.html`) by default or from `?library=<url>`. Put modules in `mods/`, in
+subfolders if you like (it can be a link to a folder elsewhere; it is git-ignored), and write
+the index with
 
 ```
 python tools/index-mods.py [folder]
@@ -92,5 +93,5 @@ node test/timeline.test.mjs path/to/*.mod path/to/*.xm
 
 Module files are not in the repo.
 
-Pattern loops (E6x / SBx) are unrolled. On 145 modules (7 CC0 test tracks plus a personal
-archive) the timeline matches libopenmpt row for row.
+Pattern loops (E6x / SBx) are unrolled. On 148 modules (7 CC0 test tracks plus a private
+collection) the timeline matches libopenmpt row for row.

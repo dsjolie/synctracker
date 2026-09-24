@@ -166,7 +166,7 @@ const library = new Library(document.getElementById('tree'), document.getElement
 	if (!player) playButton.click()
 })
 panel.library = library
-const libraryUrl = params.get('library') ?? '../synctracker-mods/index.json'
+const libraryUrl = params.get('library') ?? 'mods/index.json'
 library.load(libraryUrl).then(n => {
 	libraryEl.hidden = false
 	document.getElementById('library-count').textContent = `${n} modules`

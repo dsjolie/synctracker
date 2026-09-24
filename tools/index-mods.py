@@ -1,10 +1,11 @@
 """Index a folder of tracker modules for SyncTracker's library panel.
 
 Walks the folder (subfolders included, following junctions) and writes index.json into it:
-a tree of folders and module files with URLs relative to the index. The app loads it with
-?library=<url of index.json>. Re-run after adding, moving or renaming modules.
+a tree of folders and module files with URLs relative to the index. The app loads
+mods/index.json by default, or ?library=<url of index.json>. Re-run after adding, moving or
+renaming modules.
 
-    python tools/index-mods.py [folder]      (default: ../mods next to the repo)
+    python tools/index-mods.py [folder]      (default: mods/, next to index.html)
 """
 
 import json
@@ -33,7 +34,7 @@ def index_folder(folder, rel_parts):
     dirs, files = [], []
     for entry in sorted(os.scandir(folder), key=lambda e: e.name.lower()):
         if entry.name.startswith('.'):
-            continue  # Raven statics never serve dot paths
+            continue  # hidden files and folders; static servers often refuse dot paths
         if entry.is_dir():
             sub = index_folder(entry.path, rel_parts + [entry.name])
             if sub:
@@ -51,7 +52,7 @@ def count(tree):
 
 
 def main():
-    default = Path(__file__).resolve().parent.parent.parent / 'mods'
+    default = Path(__file__).resolve().parent.parent / 'mods'
     root = Path(sys.argv[1]) if len(sys.argv) > 1 else default
     tree = index_folder(root, []) or {'name': '', 'dirs': [], 'files': []}
     out = root / 'index.json'

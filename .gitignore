@@ -1,4 +1,6 @@
-# Module files are third-party compositions; test tracks live in ../mods/
+# Module files are third-party compositions. The local library lives in mods/ (next to
+# index.html; it may be a link to a folder elsewhere) and is never committed.
+/mods/
 *.mod
 *.s3m
 *.xm
@@ -8,3 +10,6 @@
 node_modules/
 .DS_Store
 Thumbs.db
+
+# ...except the demo tracks on the Pages site, all CC0 (see site/demo/README.md)
+!site/demo/*

@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SyncTracker</title>
+<meta name="description" content="A WebXR tracker-module player: the music's score laid out in space, driving demoscene-style visuals.">
+<meta property="og:title" content="SyncTracker">
+<meta property="og:description" content="A WebXR tracker-module player: the music's score laid out in space, driving demoscene-style visuals.">
+<meta property="og:image" content="screenshots/fan-tunnel.png">
+<style>
+  :root {
+    color-scheme: dark;
+    --bg: #05060a; --panel: #0d1120; --line: #222a44; --text: #cdd6f4; --dim: #8b95b5;
+    --accent: #6f9cff; --hot: #ff4fa3; --green: #7dff8a;
+  }
+  * { box-sizing: border-box; }
+  html { background: var(--bg); }
+  body { margin: 0; color: var(--text); font: 17px/1.6 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  a { color: var(--accent); }
+  code { font: 0.9em ui-monospace, Consolas, monospace; color: #e6ecff; background: #141a2e; padding: 0.1em 0.35em; border-radius: 4px; }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 20px; }
+
+  header { position: relative; min-height: 78vh; display: flex; align-items: flex-end; overflow: hidden; border-bottom: 1px solid var(--line); }
+  header img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0.85; }
+  header::after { content: ""; position: absolute; inset: 0; background: linear-gradient(to bottom, rgba(5,6,10,0.1) 30%, rgba(5,6,10,0.95)); }
+  .hero { position: relative; z-index: 1; padding: 48px 20px 44px; max-width: 1080px; margin: 0 auto; width: 100%; }
+  h1 { margin: 0; font: 800 clamp(44px, 8vw, 88px)/1 ui-monospace, Consolas, monospace; letter-spacing: -0.02em; color: #fff; }
+  h1 span { color: var(--hot); }
+  .tagline { max-width: 40em; margin: 14px 0 26px; font-size: clamp(18px, 2.4vw, 22px); color: #e6ecff; }
+  .actions { display: flex; flex-wrap: wrap; gap: 12px; }
+  .button { display: inline-block; padding: 11px 20px; border-radius: 8px; text-decoration: none; font-weight: 700; border: 1px solid #3a4670; color: #e6ecff; background: rgba(27, 34, 56, 0.85); }
+  .button.primary { background: var(--accent); border-color: var(--accent); color: #05060a; }
+
+  section { padding: 56px 0 8px; }
+  h2 { margin: 0 0 14px; font: 700 28px/1.2 ui-monospace, Consolas, monospace; color: #fff; }
+  h2::before { content: "▸ "; color: var(--hot); }
+  h3 { margin: 22px 0 6px; font-size: 18px; color: #fff; }
+  p { max-width: 46em; }
+  .lead { font-size: 19px; color: #e6ecff; }
+
+  .gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 18px; margin-top: 18px; }
+  figure { margin: 0; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+  figure img { display: block; width: 100%; height: auto; }
+  figcaption { padding: 10px 14px 12px; font-size: 15px; color: var(--dim); }
+  figcaption b { color: #fff; }
+
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-top: 18px; }
+  .cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 8px 28px; }
+  ul { padding-left: 1.2em; }
+  li { margin: 4px 0; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0 0; padding: 0; list-style: none; }
+  .chips li { margin: 0; padding: 2px 10px; border: 1px solid var(--line); border-radius: 999px; background: var(--panel); font-size: 15px; }
+  table { width: 100%; border-collapse: collapse; font-size: 15px; margin-top: 10px; }
+  th, td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--line); }
+  th { color: var(--dim); font-weight: 600; }
+  .table { overflow-x: auto; }
+  footer { margin-top: 56px; padding: 26px 0 40px; border-top: 1px solid var(--line); color: var(--dim); font-size: 15px; }
+
+  @media (max-width: 720px) {
+    .two { grid-template-columns: 1fr; }
+    header { min-height: 64vh; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <img src="screenshots/fan-tunnel.png" alt="The score of a song as glowing lanes fanning out in front of the listener, notes approaching a row of pads, inside a ringed tunnel">
+  <div class="hero">
+    <h1>Sync<span>Tracker</span></h1>
+    <p class="tagline">A tracker-module player for the web and VR. It lays the music's score out in space and drives demoscene-style visuals from it: every channel a lane, every note arriving as you hear it.</p>
+    <div class="actions">
+      <a class="button primary" href="player/">Launch the player</a>
+      <a class="button" href="https://github.com/dsjolie/synctracker">Source on GitHub</a>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+
+<section>
+  <h2>Why</h2>
+  <p class="lead">Music visualizers hear the mix. A tracker module carries its score: the patterns, rows and channels, every note and instrument, known before it plays.</p>
+  <p>MOD, S3M, XM and IT files, the music of the Amiga and PC demoscene, are small programs of notes and samples. Demos synced their effects to the tracker's rows. SyncTracker turns that around and builds the scene from the score itself, so the visuals can show what is coming, not only react to what was loud. In VR the score surrounds you or sits in front of you like a stage.</p>
+</section>
+
+<section>
+  <h2>Looks</h2>
+  <p>Six layouts, eight backdrops and five note shapes, in any combination. Notes rise with pitch, take their colour from the instrument and their thickness from the volume, and flash on a pad as they play.</p>
+  <div class="gallery">
+    <figure><img src="screenshots/vortex-synthwave.png" alt="Gem-shaped notes spiralling down a twisting vortex, in front of a striped synthwave sun, neon mountains and a grid floor" loading="lazy">
+      <figcaption><b>Vortex</b> over <b>Synthwave</b>. Channels twist away into the distance, gem-shaped notes.</figcaption></figure>
+    <figure><img src="screenshots/tracker-starfield.png" alt="A wall of note names in columns, like a tracker screen, in a warp starfield" loading="lazy">
+      <figcaption><b>Tracker</b> wall with <b>Text</b> notes over a <b>Starfield</b>. The pattern as note names, played rows scrolling up.</figcaption></figure>
+    <figure><img src="screenshots/wheel-nebula.png" alt="Ball-shaped notes on concentric rings of a wheel, against soft nebula clouds" loading="lazy">
+      <figcaption><b>Wheel</b> over <b>Nebula</b>. One ring per channel, rows turning down to the play point.</figcaption></figure>
+    <figure><img src="screenshots/tube-copper.png" alt="Notes arranged around a tube coming toward the viewer, under Amiga-style copper raster bars" loading="lazy">
+      <figcaption><b>Tube</b> under <b>Copper bars</b>. Channels around a tube you look down.</figcaption></figure>
+    <figure><img src="screenshots/highway-plasma.png" alt="Flat tile notes on parallel lanes running away from the viewer, with a dim plasma sky" loading="lazy">
+      <figcaption><b>Highway</b> over <b>Plasma</b>, with flat <b>Tile</b> notes and hit rings where they land.</figcaption></figure>
+    <figure><img src="screenshots/desktop-ui.png" alt="The desktop player with its control panel: transport, layout, backdrop and note choices, and the demo library" loading="lazy">
+      <figcaption>The desktop page: transport, choices, settings and the library, with <b>Fan</b> over <b>Synthwave</b>.</figcaption></figure>
+  </div>
+  <div class="cols" style="margin-top: 18px">
+    <div><h3>Layouts</h3><ul class="chips"><li>Fan</li><li>Highway</li><li>Wheel</li><li>Tube</li><li>Vortex</li><li>Tracker</li></ul></div>
+    <div><h3>Backdrops</h3><ul class="chips"><li>Tunnel</li><li>Starfield</li><li>Synthwave</li><li>Kaleidoscope</li><li>Nebula</li><li>Plasma</li><li>Copper bars</li><li>None</li></ul></div>
+    <div><h3>Notes</h3><ul class="chips"><li>Box</li><li>Gem</li><li>Ball</li><li>Tile</li><li>Text</li></ul></div>
+  </div>
+</section>
+
+<section>
+  <h2>In VR</h2>
+  <p>Open the player in the Quest browser (or any WebXR browser) and press <b>Enter VR</b>. A menu floats at waist height; point a controller at it and pull the trigger.</p>
+  <div class="two">
+    <figure><img src="screenshots/vr-menu-play.png" alt="The VR menu's Play tab: song title and position, Prev, Pause and Next, and steppers for layout, backdrop, notes and view" loading="lazy">
+      <figcaption><b>Play</b>: the song, transport and the main choices.</figcaption></figure>
+    <figure><img src="screenshots/vr-menu-library.png" alt="The VR menu's Library tab listing the demo tracks, the playing one highlighted" loading="lazy">
+      <figcaption><b>Library</b>: browse folders and pick a track. <b>Settings</b> has everything else.</figcaption></figure>
+  </div>
+  <div class="cols">
+    <ul>
+      <li><b>Trigger</b> on the menu presses a button; anywhere else it plays and pauses.</li>
+      <li><b>A/X</b> plays and pauses, <b>B/Y</b> shows and hides the menu.</li>
+      <li><b>Thumbstick</b> flicks step through layouts (left/right) and backdrops (up/down).</li>
+    </ul>
+    <ul>
+      <li><b>One grip</b> held: drag the score up, down, closer or away.</li>
+      <li><b>Both grips</b>: pull your hands apart or together to scale it.</li>
+      <li>Everything else is under <b>Settings</b>: distances, row spacing, backdrop fade and brightness, audio offset for sync by eye, FPS display.</li>
+    </ul>
+  </div>
+</section>
+
+<section>
+  <h2>Try it</h2>
+  <p>The <a href="player/">player</a> comes with seven CC0 demo tracks in its library. You can also choose or drop your own module file, or load one by URL with <code>player/?mod=&lt;url&gt;</code>. Nothing is uploaded: the music plays in your browser. Choices and settings are remembered per browser.</p>
+  <p>To use your own collection, serve the repository yourself (any static HTTPS server; <code>localhost</code> is fine on the desktop), put modules in <code>mods/</code>, in folders if you like, and run <code>python tools/index-mods.py</code> to index them.</p>
+</section>
+
+<section>
+  <h2>How it works</h2>
+  <div class="cols">
+    <div>
+      <h3>Playback</h3>
+      <p><a href="https://lib.openmpt.org/libopenmpt/">libopenmpt</a>, compiled to WebAssembly by <a href="https://github.com/DrSnuggles/chiptune">chiptune3</a>, plays the module on an AudioWorklet and hands over the whole score when it loads.</p>
+      <h3>The song as played</h3>
+      <p>The app works out the sequence of rows the song will actually play, following position jumps, pattern breaks and pattern loops, so the score can be shown ahead of the music. A test renders modules at full speed in Node and checks every played row against it: 148 modules match row for row.</p>
+    </div>
+    <div>
+      <h3>In sync</h3>
+      <p>libopenmpt reports where it is rendering; what you hear comes later by the audio output latency. The play head is the render position minus that latency, smoothed between row changes, with an offset setting for fine-tuning by eye.</p>
+      <h3>On the GPU</h3>
+      <p>Every note is in one instanced mesh built once per song. The vertex shaders place it from a single play-head value, and each layout is one short GLSL function. A frame uploads no buffers or textures, so it stays smooth in a headset.</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>Credits</h2>
+  <p>The demo tracks are released under <a href="https://creativecommons.org/publicdomain/zero/1.0/">CC0</a> by their authors on <a href="https://modarchive.org">The Mod Archive</a>:</p>
+  <div class="table">
+  <table>
+    <tr><th>Title</th><th>Artist</th><th>File</th></tr>
+    <tr><td><a href="https://modarchive.org/index.php?request=view_by_moduleid&amp;query=185151">Energy</a></td><td>K. Jose</td><td><code>k_jose_-_energy.s3m</code></td></tr>
+    <tr><td><a href="https://modarchive.org/index.php?request=view_by_moduleid&amp;query=209322">A Light Waltz</a></td><td>K. Jose</td><td><code>k_jose_-_a_light_waltz.it</code></td></tr>
+    <tr><td><a href="https://modarchive.org/index.php?request=view_by_moduleid&amp;query=168680">FX-POLY1</a></td><td>k0wax</td><td><code>fx-poly1.mod</code></td></tr>
+    <tr><td><a href="https://modarchive.org/index.php?request=view_by_moduleid&amp;query=192931">Blue Intermission</a></td><td>congusbongus</td><td><code>blue_intermission.xm</code></td></tr>
+    <tr><td><a href="https://modarchive.org/index.php?request=view_by_moduleid&amp;query=191620">Headspin</a></td><td>congusbongus</td><td><code>headspin.xm</code></td></tr>
+    <tr><td><a href="https://modarchive.org/index.php?request=view_by_moduleid&amp;query=39653">Jingle Bells</a></td><td>DrMcCoy</td><td><code>dmcjingl.it</code></td></tr>
+    <tr><td><a href="https://modarchive.org/index.php?request=view_by_moduleid&amp;query=163775">glitch_abuse</a></td><td>usrfriendly</td><td><code>glitch_abuse.xm</code></td></tr>
+  </table>
+  </div>
+  <p>Built on <a href="https://github.com/DrSnuggles/chiptune">chiptune3</a> (MIT), <a href="https://lib.openmpt.org/libopenmpt/">libopenmpt</a> (BSD) and <a href="https://threejs.org">three.js</a> (MIT). SyncTracker itself is MIT licensed.</p>
+</section>
+
+</main>
+
+<footer>
+  <div class="wrap">SyncTracker · <a href="https://github.com/dsjolie/synctracker">github.com/dsjolie/synctracker</a> · MIT licence</div>
+</footer>
+
+</body>
+</html>

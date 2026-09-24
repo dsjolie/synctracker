@@ -108,12 +108,12 @@ export class VRPanel {
 		} else if (kind === 'libpage') {
 			const pages = this.libraryPages()
 			this.libPage = (this.libPage + Number(arg) + pages) % pages
-		} else if (id === 'lib:up') {
-			this.folders.pop()
-			this.libPage = 0
 		} else if (kind === 'lib') {
 			const item = this.libraryItems()[Number(arg)]
-			if (item.dir) {
+			if (item.up) {
+				this.folders.pop()
+				this.libPage = 0
+			} else if (item.dir) {
 				this.folders.push(item.dir)
 				this.libPage = 0
 			} else {
@@ -175,11 +175,15 @@ export class VRPanel {
 		MAIN.forEach((setting, i) => this.settingRow(setting, 370 + i * ROW_H))
 	}
 
-	// Library: the open folder's subfolders, then its tracks.
+	// Library: a way up (in a subfolder), the open folder's subfolders, then its tracks.
 	libraryItems() {
 		const folder = this.folders.at(-1) ?? this.library?.tree
 		if (!folder) return []
-		return [...folder.dirs.map(dir => ({ dir })), ...folder.files.map(file => ({ file }))]
+		return [
+			...(this.folders.length ? [{ up: true }] : []),
+			...folder.dirs.map(dir => ({ dir })),
+			...folder.files.map(file => ({ file })),
+		]
 	}
 
 	libraryPages() {
@@ -202,16 +206,18 @@ export class VRPanel {
 			return
 		}
 		const path = ['Library', ...this.folders.map(f => f.name)].join(' / ')
-		this.text(fit(this.ctx, path, W - 280, 'bold 32px system-ui, sans-serif'), 40, 140, '#6f9cff', 'bold 32px')
-		if (this.folders.length) this.button('lib:up', W - 200, 108, 160, 60, 'Up')
+		this.text(fit(this.ctx, path, W - 80, 'bold 32px system-ui, sans-serif'), 40, 140, '#6f9cff', 'bold 32px')
 		const items = this.libraryItems()
 		const first = this.libPage * ROWS_PER_PAGE
 		items.slice(first, first + ROWS_PER_PAGE).forEach((item, i) => {
 			const y = LIST_TOP + 14 + i * ROW_H
-			const label = item.dir ? `${item.dir.name}/   (${count(item.dir)})` : item.file.name
+			const parent = this.folders.at(-2)?.name ?? 'Library'
+			const label = item.up ? `▲  Up to ${parent}`
+				: item.dir ? `▸  ${item.dir.name}   (${count(item.dir)})`
+				: item.file.name
 			const playing = !!item.file && lib.urlOf(item.file) === lib.current
 			this.button(`lib:${first + i}`, 40, y, W - 80, 76, fit(this.ctx, label, W - 140, 'bold 34px system-ui, sans-serif'),
-				playing, 'left', item.dir ? '#9ec0ff' : playing ? '#8f8' : '#e6ecff')
+				playing, 'left', item.up ? '#6f9cff' : item.dir ? '#9ec0ff' : playing ? '#8f8' : '#e6ecff')
 		})
 		this.pager('libpage', this.libPage, this.libraryPages())
 	}
