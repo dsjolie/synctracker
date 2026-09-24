@@ -4,23 +4,60 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>SyncTracker</title>
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.185.1/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.185.1/examples/jsm/"
+  }
+}
+</script>
 <style>
-  body { margin: 0; padding: 16px; background: #111; color: #ddd; font: 14px/1.4 monospace; }
-  button, input { font: inherit; }
-  #status { margin: 12px 0; }
-  #row { white-space: pre; color: #8f8; }
+  html { color-scheme: dark; }
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #05060a; color: #cdd6f4; font: 13px/1.45 ui-monospace, Consolas, monospace; }
+  #stage { position: fixed; inset: 0; }
+  #panel { position: fixed; top: 12px; left: 12px; box-sizing: border-box; max-width: min(560px, calc(100vw - 24px)); padding: 10px 12px;
+           background: rgba(10, 12, 20, 0.72); border: 1px solid #2a3350; border-radius: 6px; }
+  #title { margin: 0 0 6px; font-size: 15px; color: #fff; }
+  #controls { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+  button { font: inherit; color: #cdd6f4; background: #1b2238; border: 1px solid #3a4670; border-radius: 4px; padding: 3px 10px; cursor: pointer; }
+  button:disabled { opacity: 0.4; cursor: default; }
+  input[type=file] { font: inherit; max-width: 240px; }
+  #status { margin-top: 6px; color: #9aa7c7; }
+  #row { margin-top: 2px; color: #8f8; white-space: pre; overflow-x: auto; }
+  #hint { margin-top: 4px; color: #5d6784; }
+  #library { margin-top: 8px; border-top: 1px solid #2a3350; padding-top: 6px; }
+  #library > summary { cursor: pointer; color: #fff; }
+  #library-count { color: #5d6784; }
+  #filter { box-sizing: border-box; width: 100%; margin-top: 4px; font: inherit; color: inherit; background: #0d1120; border: 1px solid #2a3350; border-radius: 4px; padding: 2px 6px; }
+  #tree { margin-top: 4px; overflow: hidden auto; max-height: calc(100vh - 300px); min-height: 80px; }
+  #tree details { margin-left: 2px; }
+  #tree details > :not(summary) { margin-left: 14px; }
+  #tree summary { cursor: pointer; color: #9aa7c7; padding: 1px 0; }
+  .track { display: block; max-width: 100%; text-align: left; border: none; background: none; padding: 1px 4px; border-radius: 3px;
+           white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .track:hover { background: #1b2238; }
+  .track.playing { background: #243a2a; color: #8f8; }
 </style>
 </head>
 <body>
-<h1>SyncTracker</h1>
-<p>
-  <input type="file" id="file" accept=".mod,.s3m,.xm,.it,.mptm">
-  <button id="play" disabled>Play</button>
-  <button id="pause" disabled>Pause</button>
-</p>
-<p>Or load by URL: <code>?mod=&lt;url&gt;</code></p>
-<div id="status">No module loaded.</div>
-<div id="row"></div>
+<div id="stage"></div>
+<div id="panel">
+  <h1 id="title">SyncTracker</h1>
+  <div id="controls">
+    <input type="file" id="file" accept=".mod,.s3m,.xm,.it,.mptm">
+    <button id="play" disabled>Play</button>
+    <button id="pause" disabled>Pause</button>
+  </div>
+  <div id="status">Choose or drop a module, or load one with <code>?mod=&lt;url&gt;</code>.</div>
+  <div id="row"></div>
+  <div id="hint">Drag to look around · scroll to zoom · space to pause · in VR: trigger plays/pauses, grip skips to the next track</div>
+  <details id="library" open hidden>
+    <summary>Library <span id="library-count"></span></summary>
+    <input id="filter" type="search" placeholder="Filter by name or folder">
+    <div id="tree"></div>
+  </details>
+</div>
 <script type="module" src="main.js"></script>
 </body>
 </html>
