@@ -141,17 +141,29 @@ export class ScoreScene {
 		this.show = { rings: true, beats: true }
 
 		// Controllers: a ray to point with and the controller model. The app decides what the
-		// trigger (select), grip (squeeze), face buttons and thumbstick do.
+		// trigger (select), face buttons and thumbstick do. The grips move and scale the score:
+		// one grip held drags it up/down and closer/away, both together scale it.
 		this.onSelect = null	// (controller) => void
-		this.onSqueeze = null
 		this.onGamepad = null	// ('a' | 'b' | 'left' | 'right' | 'up' | 'down') => void
+		this.onStageGrab = null	// (distance, height, scale, done) => void, while and after a grab
+		this.grabLimits = { distance: [0, 6], height: [-1, 1.5], scale: [0.1, 2] }
+		this.grabbing = []	// controllers whose grip is held
+		this.grab = null	// the state when the current grab started
 		this.controllers = []
 		const models = new XRControllerModelFactory()
 		const rayGeometry = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3(0, 0, -1)])
 		for (const i of [0, 1]) {
 			const controller = this.renderer.xr.getController(i)
 			controller.addEventListener('select', () => this.onSelect?.(controller))
-			controller.addEventListener('squeeze', () => this.onSqueeze?.(controller))
+			controller.addEventListener('squeezestart', () => {
+				this.grabbing.push(controller)
+				this.startGrab()
+			})
+			controller.addEventListener('squeezeend', () => {
+				this.grabbing = this.grabbing.filter(c => c !== controller)
+				this.startGrab()
+				if (!this.grabbing.length) this.onStageGrab?.(...this.stageValues(), true)
+			})
 			const ray = new THREE.Line(rayGeometry, new THREE.LineBasicMaterial({ color: 0x8fb4ff, transparent: true, opacity: 0.5 }))
 			ray.name = 'ray'
 			ray.scale.z = 3
@@ -562,6 +574,47 @@ export class ScoreScene {
 		u.uNow.value = now
 	}
 
+	// The current stage placement as settings: distance, height, scale.
+	stageValues() {
+		return [-this.stage.position.z, this.stage.position.y, this.stage.scale.x]
+	}
+
+	// A grip was pressed or released: restart the grab from where things are now.
+	startGrab() {
+		if (!this.grabbing.length) {
+			this.grab = null
+			return
+		}
+		const hands = this.grabbing.map(c => c.getWorldPosition(new THREE.Vector3()))
+		this.grab = {
+			hands,
+			position: this.stage.position.clone(),
+			scale: this.stage.scale.x,
+			span: hands.length > 1 ? hands[0].distanceTo(hands[1]) : 0,
+		}
+	}
+
+	// Per frame while gripping. Closer/away moves at twice the hand's motion, so the score can
+	// be pushed a few metres without re-grabbing.
+	updateGrab() {
+		const g = this.grab
+		if (!g) return
+		const clamp = (v, [lo, hi]) => Math.min(hi, Math.max(lo, v))
+		const hands = this.grabbing.map(c => c.getWorldPosition(new THREE.Vector3()))
+		if (hands.length === 1) {
+			const move = hands[0].clone().sub(g.hands[0])
+			const distance = clamp(-(g.position.z + move.z * 2), this.grabLimits.distance)
+			const height = clamp(g.position.y + move.y, this.grabLimits.height)
+			this.stage.position.set(0, height, -distance)
+		} else if (g.span > 0.01) {
+			const scale = clamp(g.scale * hands[0].distanceTo(hands[1]) / g.span, this.grabLimits.scale)
+			this.stage.scale.setScalar(scale)
+			this.uniforms.uStageScale.value = scale
+		}
+		this.stage.updateMatrixWorld()
+		this.onStageGrab?.(...this.stageValues(), false)
+	}
+
 	// Face buttons (A/X, B/Y) and thumbstick flicks, as edges. Quest Touch: buttons[4] is A/X,
 	// buttons[5] B/Y; axes[2], axes[3] the thumbstick.
 	pollGamepads() {
@@ -587,6 +640,7 @@ export class ScoreScene {
 	start(frame) {
 		this.renderer.setAnimationLoop(() => {
 			this.pollGamepads()
+			this.updateGrab()
 			frame()
 			if (!this.renderer.xr.isPresenting) this.controls.update()
 			this.renderer.render(this.scene, this.camera)

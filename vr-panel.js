@@ -1,15 +1,17 @@
 // The in-VR menu: a panel in front of the listener, used by pointing a controller at it and
-// pulling the trigger. Two tabs: Play (song info, transport and the main choices) and
-// Settings (every setting, a page at a time). It is a canvas texture, redrawn only when its
-// content or the hovered button changes, never every frame.
+// pulling the trigger. Tabs: Play (song info, transport and the main choices), Library (pick
+// a track, folder by folder) and Settings (every setting, a page at a time). It is a canvas
+// texture, redrawn only when its content or the hovered button changes, never every frame.
 
 import * as THREE from 'three'
 import { SETTINGS, formatValue } from './settings.js'
+import { count } from './library.js'
 
 const W = 1024, H = 800	// canvas pixels
 const SIZE = 0.64	// panel width (m); height follows the canvas aspect
 const ROW_H = 92
 const ROWS_PER_PAGE = 5
+const LIST_TOP = 172	// first row of the Settings and Library lists
 
 // Settings pages: each group's entries, a page at a time. {group, entries}
 const ENTRY_PAGES = []
@@ -24,13 +26,16 @@ for (const s of SETTINGS) {
 const MAIN = SETTINGS.filter(s => s.main)
 
 export class VRPanel {
-	// onAction(id): 'prev' | 'play' | 'next' | 'hide' | 'reset' | 'set:<key>:<+1|-1>'
+	// onAction(id): 'prev' | 'play' | 'next' | 'hide' | 'exit' | 'reset' | 'set:<key>:<+1|-1>'
 	constructor(renderer, scene, values, onAction) {
 		this.values = values	// the live settings object
 		this.onAction = onAction
+		this.library = null	// set by the app
 		this.info = { title: '', track: '', position: '', progress: 0, playing: false, fps: '' }
 		this.tab = 'play'
-		this.page = 0
+		this.page = 0	// Settings page
+		this.folders = []	// Library: the open folder's path from the root
+		this.libPage = 0
 		this.hover = null
 		this.buttons = []
 		this.canvas = document.createElement('canvas')
@@ -67,7 +72,7 @@ export class VRPanel {
 		}
 	}
 
-	refresh() { this.dirty = true }	// settings changed
+	refresh() { this.dirty = true }	// settings or the library changed
 
 	toggle() {
 		this.mesh.visible = !this.mesh.visible
@@ -94,10 +99,26 @@ export class VRPanel {
 	}
 
 	press(id) {
-		if (id === 'tab:play' || id === 'tab:settings') {
-			this.tab = id.slice(4)
-		} else if (id === 'page:-1' || id === 'page:+1') {
-			this.page = (this.page + Number(id.slice(5)) + ENTRY_PAGES.length) % ENTRY_PAGES.length
+		const [kind, arg] = id.split(':')
+		if (kind === 'tab') {
+			this.tab = arg
+			if (arg === 'library') this.openCurrentFolder()
+		} else if (kind === 'page') {
+			this.page = (this.page + Number(arg) + ENTRY_PAGES.length) % ENTRY_PAGES.length
+		} else if (kind === 'libpage') {
+			const pages = this.libraryPages()
+			this.libPage = (this.libPage + Number(arg) + pages) % pages
+		} else if (id === 'lib:up') {
+			this.folders.pop()
+			this.libPage = 0
+		} else if (kind === 'lib') {
+			const item = this.libraryItems()[Number(arg)]
+			if (item.dir) {
+				this.folders.push(item.dir)
+				this.libPage = 0
+			} else {
+				this.library.pick(item.file)
+			}
 		} else {
 			this.onAction(id)
 		}
@@ -126,12 +147,14 @@ export class VRPanel {
 		roundRect(ctx, 0, 0, W, H, 28, 'rgba(10, 12, 22, 0.9)')
 		ctx.textBaseline = 'middle'
 
-		this.button('tab:play', 30, 24, 220, 70, 'Play', this.tab === 'play')
-		this.button('tab:settings', 262, 24, 250, 70, 'Settings', this.tab === 'settings')
-		this.button('hide', W - 190, 24, 160, 70, 'Hide')
-		if (this.info.fps) this.text(this.info.fps, W - 220, 59, '#9aa7c7', '32px', 'right')
+		this.button('tab:play', 30, 24, 160, 70, 'Play', this.tab === 'play')
+		this.button('tab:library', 200, 24, 200, 70, 'Library', this.tab === 'library')
+		this.button('tab:settings', 410, 24, 210, 70, 'Settings', this.tab === 'settings')
+		this.button('hide', 654, 24, 150, 70, 'Hide')
+		this.button('exit', 814, 24, 180, 70, 'Exit VR')
 
 		if (this.tab === 'play') this.drawPlay()
+		else if (this.tab === 'library') this.drawLibrary()
 		else this.drawSettings()
 
 		this.texture.needsUpdate = true
@@ -140,7 +163,9 @@ export class VRPanel {
 
 	drawPlay() {
 		const s = this.info
-		this.text(fit(this.ctx, s.title || 'SyncTracker', W - 80, 'bold 44px system-ui, sans-serif'), 40, 140, '#fff', 'bold 44px')
+		const titleWidth = W - 80 - (s.fps ? 150 : 0)
+		this.text(fit(this.ctx, s.title || 'SyncTracker', titleWidth, 'bold 44px system-ui, sans-serif'), 40, 140, '#fff', 'bold 44px')
+		if (s.fps) this.text(s.fps, W - 40, 140, '#9aa7c7', '32px', 'right')
 		this.text(fit(this.ctx, [s.track, s.position].filter(Boolean).join('   ·   '), W - 80, '30px system-ui, sans-serif'), 40, 192, '#9aa7c7', '30px')
 		roundRect(this.ctx, 40, 222, W - 80, 8, 4, '#1b2238')
 		roundRect(this.ctx, 40, 222, (W - 80) * s.progress, 8, 4, '#6f9cff')
@@ -150,15 +175,60 @@ export class VRPanel {
 		MAIN.forEach((setting, i) => this.settingRow(setting, 370 + i * ROW_H))
 	}
 
+	// Library: the open folder's subfolders, then its tracks.
+	libraryItems() {
+		const folder = this.folders.at(-1) ?? this.library?.tree
+		if (!folder) return []
+		return [...folder.dirs.map(dir => ({ dir })), ...folder.files.map(file => ({ file }))]
+	}
+
+	libraryPages() {
+		return Math.max(1, Math.ceil(this.libraryItems().length / ROWS_PER_PAGE))
+	}
+
+	// Open the folder holding the playing track, at its page.
+	openCurrentFolder() {
+		const lib = this.library
+		if (!lib?.tree) return
+		this.folders = lib.current ? lib.folderPath(lib.current) : []
+		const i = this.libraryItems().findIndex(item => item.file && lib.urlOf(item.file) === lib.current)
+		this.libPage = i === -1 ? 0 : Math.floor(i / ROWS_PER_PAGE)
+	}
+
+	drawLibrary() {
+		const lib = this.library
+		if (!lib?.tree) {
+			this.text('No library loaded', 40, 140, '#9aa7c7', '32px')
+			return
+		}
+		const path = ['Library', ...this.folders.map(f => f.name)].join(' / ')
+		this.text(fit(this.ctx, path, W - 280, 'bold 32px system-ui, sans-serif'), 40, 140, '#6f9cff', 'bold 32px')
+		if (this.folders.length) this.button('lib:up', W - 200, 108, 160, 60, 'Up')
+		const items = this.libraryItems()
+		const first = this.libPage * ROWS_PER_PAGE
+		items.slice(first, first + ROWS_PER_PAGE).forEach((item, i) => {
+			const y = LIST_TOP + 14 + i * ROW_H
+			const label = item.dir ? `${item.dir.name}/   (${count(item.dir)})` : item.file.name
+			const playing = !!item.file && lib.urlOf(item.file) === lib.current
+			this.button(`lib:${first + i}`, 40, y, W - 80, 76, fit(this.ctx, label, W - 140, 'bold 34px system-ui, sans-serif'),
+				playing, 'left', item.dir ? '#9ec0ff' : playing ? '#8f8' : '#e6ecff')
+		})
+		this.pager('libpage', this.libPage, this.libraryPages())
+	}
+
 	drawSettings() {
 		const page = ENTRY_PAGES[this.page]
 		this.text(page.group, 40, 140, '#6f9cff', 'bold 32px')
-		page.entries.forEach((setting, i) => this.settingRow(setting, 172 + i * ROW_H))
+		page.entries.forEach((setting, i) => this.settingRow(setting, LIST_TOP + i * ROW_H))
+		this.pager('page', this.page, ENTRY_PAGES.length)
+		this.button('reset', W - 330, H - 96, 290, 72, 'Reset all')
+	}
+
+	pager(id, page, pages) {
 		const y = H - 96
-		this.button('page:-1', 40, y, 110, 72, '◀')
-		this.text(`Page ${this.page + 1} / ${ENTRY_PAGES.length}`, 280, y + 36, '#9aa7c7', '32px', 'center')
-		this.button('page:+1', 410, y, 110, 72, '▶')
-		this.button('reset', W - 330, y, 290, 72, 'Reset all')
+		this.button(`${id}:-1`, 40, y, 110, 72, '◀')
+		this.text(`Page ${page + 1} / ${pages}`, 280, y + 36, '#9aa7c7', '32px', 'center')
+		this.button(`${id}:+1`, 410, y, 110, 72, '▶')
 	}
 
 	// Label, ◀, value, ▶ for one setting.
@@ -169,10 +239,11 @@ export class VRPanel {
 		this.button(`set:${setting.key}:+1`, 884, y, 100, 76, '▶')
 	}
 
-	button(id, x, y, w, h, label, active = false) {
+	button(id, x, y, w, h, label, active = false, align = 'center', color = null) {
 		this.buttons.push({ id, x, y, w, h })
 		roundRect(this.ctx, x, y, w, h, 16, id === this.hover ? '#34467a' : active ? '#2a3a66' : '#1b2238')
-		this.text(label, x + w / 2, y + h / 2, active ? '#fff' : '#e6ecff', 'bold 36px', 'center')
+		const tx = align === 'center' ? x + w / 2 : x + 24
+		this.text(label, tx, y + h / 2, color ?? (active ? '#fff' : '#e6ecff'), 'bold 34px', align)
 	}
 
 	text(text, x, y, color, size, align = 'left') {

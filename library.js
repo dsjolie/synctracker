@@ -21,6 +21,28 @@ export class Library {
 		return count(this.tree)
 	}
 
+	urlOf(file) {
+		return new URL(file.url, this.base).href
+	}
+
+	pick(file) {
+		this.onPick(this.urlOf(file), file.name)
+	}
+
+	// The folders from the root down to the one holding the track at url ([] for the root, or
+	// if it is not in the library).
+	folderPath(url) {
+		const search = (folder, path) => {
+			if (folder.files.some(f => this.urlOf(f) === url)) return path
+			for (const sub of folder.dirs) {
+				const found = search(sub, [...path, sub])
+				if (found) return found
+			}
+			return null
+		}
+		return (this.tree && search(this.tree, [])) ?? []
+	}
+
 	setCurrent(url) {
 		this.current = url
 		for (const el of this.treeEl.querySelectorAll('.track')) {
@@ -74,6 +96,6 @@ export class Library {
 	}
 }
 
-function count(folder) {
+export function count(folder) {
 	return folder.files.length + folder.dirs.reduce((n, d) => n + count(d), 0)
 }

@@ -33,9 +33,12 @@ backdrops fade out), brightness, spread, speed, pulse; audio offset (for sync by
 foveation, FPS display; and the menu's height, distance and tilt. The list is in
 `settings.js`; the page and VR controls are generated from it.
 
-In VR: point at the menu and pull the trigger. The trigger elsewhere or A/X plays and pauses;
-the grip or B/Y shows and hides the menu; thumbstick flicks step through layouts (left/right)
-and backdrops (up/down).
+In VR: point at the menu and pull the trigger. Its tabs are Play, Library (browse folders
+and pick a track) and Settings, with Hide and Exit VR alongside. The trigger elsewhere or A/X
+plays and pauses; B/Y shows and hides the menu; thumbstick flicks step through layouts
+(left/right) and backdrops (up/down). Hold one grip and move your hand to drag the score
+up/down and closer/away (closer/away at twice the hand's motion); hold both and pull your
+hands apart or together to scale it. The score settings take the new values on release.
 
 ## Run it
 

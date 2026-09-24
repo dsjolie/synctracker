@@ -18,6 +18,19 @@ const libraryEl = document.getElementById('library')
 const scene = new ScoreScene(document.getElementById('stage'))
 const values = load()
 const panel = new VRPanel(scene.renderer, scene.scene, values, onPanelAction)
+for (const key of ['distance', 'height', 'scale']) scene.grabLimits[key] = [BY_KEY[key].min, BY_KEY[key].max]
+
+// Grabbing the score (grips) moves it directly. The settings follow when the grab ends, so the
+// menu and page controls are not redrawn every frame of a drag.
+scene.onStageGrab = (distance, height, scale, done) => {
+	if (!done) return
+	const round = v => Number(v.toFixed(3))
+	values.distance = round(distance)
+	values.height = round(height)
+	values.scale = round(scale)
+	for (const key of ['distance', 'height', 'scale']) setValue(key, values[key], false)
+	save(values)
+}
 
 let player = null
 let source = null	// ArrayBuffer from a file, or a URL string
@@ -135,6 +148,7 @@ function onPanelAction(id) {
 	else if (id === 'next') library.next()
 	else if (id === 'play') playPause()
 	else if (id === 'hide') panel.toggle()
+	else if (id === 'exit') scene.renderer.xr.getSession()?.end()
 	else if (id === 'reset') resetSettings()
 	else {
 		const [, key, dir] = id.split(':')
@@ -151,10 +165,12 @@ const library = new Library(document.getElementById('tree'), document.getElement
 	setSource(url, name)
 	if (!player) playButton.click()
 })
+panel.library = library
 const libraryUrl = params.get('library') ?? '../synctracker-mods/index.json'
 library.load(libraryUrl).then(n => {
 	libraryEl.hidden = false
 	document.getElementById('library-count').textContent = `${n} modules`
+	panel.refresh()
 }).catch(e => console.warn('No library:', e.message))
 
 const modParam = params.get('mod')
@@ -183,13 +199,12 @@ addEventListener('keydown', e => {
 })
 
 // In VR: the trigger presses the menu button it points at, and anywhere else plays and pauses.
-// The grip or B/Y shows and hides the menu, A/X plays and pauses, and thumbstick flicks step
-// through layouts (left/right) and backdrops (up/down). A WebXR select counts as a user
-// gesture, so it may also create the AudioContext.
+// B/Y shows and hides the menu, A/X plays and pauses, thumbstick flicks step through layouts
+// (left/right) and backdrops (up/down), and the grips move and scale the score (scene.js). A
+// WebXR select counts as a user gesture, so it may also create the AudioContext.
 scene.onSelect = controller => {
 	if (!panel.select(controller)) playPause()
 }
-scene.onSqueeze = () => panel.toggle()
 scene.onGamepad = button => {
 	if (button === 'a') playPause()
 	else if (button === 'b') panel.toggle()
