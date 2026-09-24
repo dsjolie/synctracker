@@ -3,43 +3,66 @@
 A WebXR tracker-module player. MOD, S3M, XM and IT music, with the module's score (patterns,
 rows, channels) laid out in space around you and driving demoscene-style visuals.
 
-Status: first version — playback, the score lanes and a tunnel backdrop, in a flat page and
-(untested on a headset so far) in VR.
+Status: plays in a flat page and in VR (Quest), with selectable layouts, backdrops and views,
+a VR control panel, and a module library.
 
 ## What it does
 
-Each channel is a lane fanned out in front of you. The rows of the song come toward you along
-the lanes, and each note lands on the "now" arc as you hear it. A note's height is its pitch,
-its colour its instrument, its thickness its volume. Arcs across the lanes mark beats
-(4 rows) and bars (16 rows).
+Each channel is a lane. The rows of the song come toward the play point along the lanes, and
+each note lands there as you hear it. A note's lift off its lane is its pitch, its colour its
+instrument, its thickness its volume. Strips across the lanes mark beats (4 rows) and bars
+(16 rows). A pad per lane flashes when the channel plays.
 
-Around it all is a demoscene tunnel whose rings travel toward you with the music, one per
-beat, and which brightens as notes land. It is computed from the view direction in one
-fragment shader, with no textures.
+Choices, on the page and on the VR panel (remembered per browser):
 
-In VR, the controller trigger plays, pauses and resumes, and replays after the end. Load the
-module before entering VR.
+- **Layout**: *Fan* (lanes radiating out in front), *Highway* (parallel lanes), *Wheel*
+  (a disc, one ring per channel, rows turning down to the play point), *Tube* (channels
+  around a tube you look down).
+- **Backdrop**: *Tunnel* (rings travel toward you, one per beat), *Plasma*, *Copper bars*
+  (Amiga raster bars), *None*. All brighten as notes land.
+- **View**: *In front* (the score as a stage ahead of you), *Around you*, *Tabletop*.
+
+In VR a panel at waist height shows the song and position and has Prev / Play-Pause / Next and
+the three choices; point a controller and pull the trigger. The trigger pointed elsewhere
+plays and pauses; the grip hides or shows the panel.
 
 ## Run it
 
 Plain ES modules, no build step. Serve the folder over HTTP (or HTTPS for a headset) and open
-`index.html`. Then choose or drop a module file, or pass one by URL: `index.html?mod=<url>`.
-Drag to look around, scroll to zoom, space to pause.
+`index.html`. Choose or drop a module file, pick one from the library, or pass one by URL:
+`index.html?mod=<url>`. Drag to look around, scroll to zoom, space to pause.
 
-On Raven the app is registered as a static at `/s/synctracker/`, with the local test modules
-at `/s/synctracker-mods/`, e.g.
+On Raven the app is a static at `/s/synctracker/`, with local modules at
+`/s/synctracker-mods/`, e.g.
 `https://<raven>:3443/s/synctracker/?mod=../synctracker-mods/k_jose_-_energy.s3m`.
+
+### Library
+
+The library panel shows a folder tree from an `index.json`, loaded from
+`../synctracker-mods/index.json` by default or `?library=<url>`. Write it with
+
+```
+python tools/index-mods.py [folder]
+```
+
+which walks the folder (subfolders and junctions included) and indexes the module files in
+it. Re-run it after adding, moving or renaming modules.
 
 ## Code
 
-- `main.js` wires the player to the scene and keeps the play-position clock. libopenmpt
-  reports where it is *rendering*; the play head is that minus the audio output latency,
-  interpolated between row changes.
+- `main.js` wires the player, scene, library and VR panel together, holds the choices, and
+  keeps the play-position clock. libopenmpt reports where it is *rendering*; the play head
+  is that minus the audio output latency, interpolated between row changes.
 - `timeline.js` works out the song as played, the sequence of (order, row) steps following
-  position jumps and pattern breaks, so rows can be shown before they play.
-- `scene.js` is the three.js scene and the tunnel. Every note is in one instanced mesh built once per song,
-  and the vertex shaders place it from a single uniform (the play head), so scrolling
-  uploads no buffers or textures.
+  position jumps, pattern breaks and pattern loops, so rows can be shown before they play.
+- `scene.js` is the three.js scene. Each layout is one GLSL function,
+  `layoutPos(rows ahead, lane)`; box orientation, lane lines, pads and beat strips are
+  derived from it. Every note is in one instanced mesh built once per song, placed by the
+  vertex shaders from a single play-head uniform, so a frame uploads no buffers or textures.
+- `backdrops.js`: the backdrop shaders, on a sphere around the listener.
+- `vr-panel.js`: the VR panel, a canvas texture redrawn only when its content or the hovered
+  button changes.
+- `library.js`: the library tree.
 - `vendor/chiptune3/` is [chiptune3](https://github.com/DrSnuggles/chiptune) 0.8.9
   (libopenmpt on an AudioWorklet), unmodified.
 

@@ -1,7 +1,8 @@
 import { ChiptuneJsPlayer } from './vendor/chiptune3/chiptune3.js'
 import { buildTimeline, collectNotes, NOTE, INSTRUMENT } from './timeline.js'
-import { ScoreScene } from './scene.js'
+import { ScoreScene, LAYOUTS, BACKDROPS, VIEWS } from './scene.js'
 import { Library } from './library.js'
+import { VRPanel } from './vr-panel.js'
 
 const NOTE_NAMES = ['C-', 'C#', 'D-', 'D#', 'E-', 'F-', 'F#', 'G-', 'G#', 'A-', 'A#', 'B-']
 
@@ -14,6 +15,7 @@ const rowEl = document.getElementById('row')
 const libraryEl = document.getElementById('library')
 
 const scene = new ScoreScene(document.getElementById('stage'))
+const panel = new VRPanel(scene.renderer, scene.scene, onPanelButton)
 
 let player = null
 let source = null	// ArrayBuffer from a file, or a URL string from ?mod=
@@ -34,6 +36,54 @@ let rowDuration = 0.125
 let shownStep = -1
 
 const params = new URLSearchParams(location.search)
+
+// Visualization choices, shared by the page's selects and the VR panel, and remembered in
+// this browser.
+const OPTIONS = { layout: LAYOUTS, backdrop: BACKDROPS, view: VIEWS }
+const SETTINGS_KEY = 'synctracker.settings'
+const settings = { layout: 0, backdrop: 0, view: 0 }
+try {
+	const saved = JSON.parse(localStorage.getItem(SETTINGS_KEY) ?? '{}')
+	for (const kind in OPTIONS) {
+		if (Number.isInteger(saved[kind]) && OPTIONS[kind][saved[kind]]) settings[kind] = saved[kind]
+	}
+} catch { /* no storage (private window etc.): defaults */ }
+
+const selects = {}
+for (const kind in OPTIONS) {
+	const select = document.getElementById(kind)
+	OPTIONS[kind].forEach((option, i) => select.add(new Option(option.name, i)))
+	select.addEventListener('change', () => choose(kind, Number(select.value)))
+	selects[kind] = select
+}
+applySettings()
+
+function choose(kind, index) {
+	settings[kind] = index
+	applySettings()
+	try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)) } catch { /* not remembered */ }
+}
+
+function applySettings() {
+	scene.setLayout(settings.layout)
+	scene.setBackdrop(settings.backdrop)
+	scene.setView(settings.view)
+	for (const kind in OPTIONS) {
+		selects[kind].value = settings[kind]
+		panel.set({ [kind]: OPTIONS[kind][settings[kind]].name })
+	}
+}
+
+function onPanelButton(id) {
+	if (id === 'prev') library.prev()
+	else if (id === 'next') library.next()
+	else if (id === 'play') playPause()
+	else {
+		const [, kind, dir] = /^(\w+)([+-]1)$/.exec(id)
+		const n = OPTIONS[kind].length
+		choose(kind, (settings[kind] + Number(dir) + n) % n)
+	}
+}
 
 // Clicking a track is a user gesture, so it may also create the player.
 const library = new Library(document.getElementById('tree'), document.getElementById('filter'), (url, name) => {
@@ -61,9 +111,13 @@ addEventListener('drop', async e => {
 	if (file) setSource(await file.arrayBuffer(), file.name)
 })
 
+document.getElementById('prev').addEventListener('click', () => library.prev())
+document.getElementById('next').addEventListener('click', () => library.next())
+
 function setSource(value, name) {
 	source = value
 	sourceName = name
+	panel.set({ track: name, title: '', position: 'Ready', progress: 0 })
 	library.setCurrent(typeof value === 'string' ? new URL(value, location.href).href : null)
 	playButton.disabled = false
 	statusEl.textContent = `Ready: ${name}`
@@ -89,15 +143,20 @@ playButton.addEventListener('click', () => {
 
 pauseButton.addEventListener('click', togglePause)
 
-// In VR the page is out of sight: the trigger plays, pauses and resumes, and replays after the
-// end. A WebXR select counts as a user gesture, so it may also create the AudioContext.
-scene.onSelect = () => {
-	if (!source) return
-	if (!player) playButton.click()
+// In VR the trigger presses the panel button it points at; pointed anywhere else it plays,
+// pauses and resumes, and replays after the end. The grip shows or hides the panel. A WebXR
+// select counts as a user gesture, so it may also create the AudioContext.
+scene.onSelect = controller => {
+	if (!panel.select(controller)) playPause()
+}
+scene.onSqueeze = () => panel.toggle()
+
+function playPause() {
+	if (!source) library.next()	// nothing chosen yet: start with the first library track
+	else if (!player) playButton.click()
 	else if (ended) start()
 	else togglePause()
 }
-scene.onSqueeze = () => library.next()
 addEventListener('keydown', e => {
 	if (e.code === 'Space' && player && e.target.tagName !== 'INPUT') {
 		e.preventDefault()
@@ -110,6 +169,7 @@ function togglePause() {
 	paused = !paused
 	player.togglePause()
 	pauseButton.textContent = paused ? 'Resume' : 'Pause'
+	panel.set({ playing: !paused })
 }
 
 function start() {
@@ -121,6 +181,7 @@ function start() {
 	pauseButton.textContent = 'Pause'
 	pauseButton.disabled = false
 	statusEl.textContent = `Loading ${sourceName}…`
+	panel.set({ playing: true, position: 'Loading…', progress: 0 })
 	if (typeof source === 'string') player.load(source)
 	else player.play(source.slice(0))	// the buffer is transferred to the worklet, keep ours for replay
 }
@@ -131,6 +192,7 @@ function onMetadata(meta) {
 	const notes = collectNotes(song, timeline)
 	scene.setSong(timeline, notes, song.channels.length)
 	titleEl.textContent = meta.title || sourceName
+	panel.set({ title: meta.title || sourceName })
 	console.log('meta', meta)
 	console.log(`"${meta.title}" — ${song.channels.length} channels, ${song.orders.length} orders, ` +
 		`${song.patterns.length} patterns, ${timeline.steps.length} rows played, ` +
@@ -170,6 +232,7 @@ function onEnded() {
 	player.stop()
 	pauseButton.disabled = true
 	statusEl.textContent = `Ended — ${sourceName}`
+	panel.set({ playing: false, position: 'Ended', progress: 1 })
 }
 
 // The fractional timeline step the listener is hearing now.
@@ -194,6 +257,7 @@ function playhead() {
 }
 
 scene.start(() => {
+	panel.update(scene.controllers)
 	if (!player || !timeline) return
 	const now = playhead()
 	scene.update(now)
@@ -203,6 +267,11 @@ scene.start(() => {
 		shownStep = step
 		const { order, pattern, row } = timeline.steps[step]
 		if (!ended) statusEl.textContent = `order ${order}  pattern ${pattern}  row ${String(row).padStart(2, '0')}`
+		// The panel shows the order, not the row: it redraws a few times a minute, not per row.
+		if (!ended) panel.set({
+			position: `order ${order + 1} / ${song.orders.length}  ·  pattern ${pattern}`,
+			progress: step / timeline.steps.length,
+		})
 		rowEl.textContent = song.patterns[pattern].rows[row].map(formatCell).join('  ')
 	}
 })

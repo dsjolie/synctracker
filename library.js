@@ -28,12 +28,15 @@ export class Library {
 		}
 	}
 
-	// The track after the current one, in the order shown (respecting the filter).
-	next() {
+	// The track after or before the current one, in the order shown (respecting the filter).
+	next() { this.step(1) }
+	prev() { this.step(-1) }
+
+	step(dir) {
 		const tracks = [...this.treeEl.querySelectorAll('.track')]
 		if (!tracks.length) return
 		const i = tracks.findIndex(el => el.dataset.url === this.current)
-		const el = tracks[(i + 1) % tracks.length]
+		const el = tracks[i === -1 ? 0 : (i + dir + tracks.length) % tracks.length]
 		this.onPick(el.dataset.url, el.textContent)
 	}
 

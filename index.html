@@ -23,6 +23,8 @@
   button { font: inherit; color: #cdd6f4; background: #1b2238; border: 1px solid #3a4670; border-radius: 4px; padding: 3px 10px; cursor: pointer; }
   button:disabled { opacity: 0.4; cursor: default; }
   input[type=file] { font: inherit; max-width: 240px; }
+  #options { display: flex; flex-wrap: wrap; gap: 4px 12px; margin-top: 6px; color: #9aa7c7; }
+  select { font: inherit; color: #cdd6f4; background: #1b2238; border: 1px solid #3a4670; border-radius: 4px; }
   #status { margin-top: 6px; color: #9aa7c7; }
   #row { margin-top: 2px; color: #8f8; white-space: pre; overflow-x: auto; }
   #hint { margin-top: 4px; color: #5d6784; }
@@ -48,10 +50,17 @@
     <input type="file" id="file" accept=".mod,.s3m,.xm,.it,.mptm">
     <button id="play" disabled>Play</button>
     <button id="pause" disabled>Pause</button>
+    <button id="prev" title="Previous library track">Prev</button>
+    <button id="next" title="Next library track">Next</button>
+  </div>
+  <div id="options">
+    <label>Layout <select id="layout"></select></label>
+    <label>Backdrop <select id="backdrop"></select></label>
+    <label>View <select id="view"></select></label>
   </div>
   <div id="status">Choose or drop a module, or load one with <code>?mod=&lt;url&gt;</code>.</div>
   <div id="row"></div>
-  <div id="hint">Drag to look around · scroll to zoom · space to pause · in VR: trigger plays/pauses, grip skips to the next track</div>
+  <div id="hint">Drag to look around · scroll to zoom · space to pause · in VR: point and pull the trigger on the panel; trigger elsewhere plays/pauses; grip hides the panel</div>
   <details id="library" open hidden>
     <summary>Library <span id="library-count"></span></summary>
     <input id="filter" type="search" placeholder="Filter by name or folder">
