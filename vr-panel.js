@@ -1,34 +1,38 @@
-// The in-VR console: song info and buttons, on a panel in front of the listener at waist
-// height, used by pointing a controller at it and pulling the trigger. It is a canvas texture,
-// redrawn only when its content or the hovered button changes, never every frame.
+// The in-VR menu: a panel in front of the listener, used by pointing a controller at it and
+// pulling the trigger. Two tabs: Play (song info, transport and the main choices) and
+// Settings (every setting, a page at a time). It is a canvas texture, redrawn only when its
+// content or the hovered button changes, never every frame.
 
 import * as THREE from 'three'
+import { SETTINGS, formatValue } from './settings.js'
 
-const W = 1024, H = 640	// canvas pixels
+const W = 1024, H = 800	// canvas pixels
 const SIZE = 0.64	// panel width (m); height follows the canvas aspect
+const ROW_H = 92
+const ROWS_PER_PAGE = 5
 
-// Buttons: id, rectangle in canvas pixels, label (a function of the panel state for the
-// ones that change).
-const BUTTONS = [
-	{ id: 'prev', x: 40, y: 210, w: 290, h: 90, label: () => 'Prev' },
-	{ id: 'play', x: 367, y: 210, w: 290, h: 90, label: s => s.playing ? 'Pause' : 'Play' },
-	{ id: 'next', x: 694, y: 210, w: 290, h: 90, label: () => 'Next' },
-	...['layout', 'backdrop', 'view'].flatMap((kind, i) => {
-		const y = 330 + i * 100
-		return [
-			{ id: `${kind}-1`, x: 290, y, w: 100, h: 80, label: () => '◀' },
-			{ id: `${kind}+1`, x: 884, y, w: 100, h: 80, label: () => '▶' },
-		]
-	}),
-]
-const OPTION_ROWS = [['layout', 'Layout'], ['backdrop', 'Backdrop'], ['view', 'View']]
+// Settings pages: each group's entries, a page at a time. {group, entries}
+const ENTRY_PAGES = []
+let group = ''
+for (const s of SETTINGS) {
+	if (s.group) { group = s.group; continue }
+	if (s.main) continue
+	const last = ENTRY_PAGES.at(-1)
+	if (!last || last.group !== group || last.entries.length === ROWS_PER_PAGE) ENTRY_PAGES.push({ group, entries: [s] })
+	else last.entries.push(s)
+}
+const MAIN = SETTINGS.filter(s => s.main)
 
 export class VRPanel {
-	// onButton(id): 'prev' | 'play' | 'next' | '<kind>-1' | '<kind>+1'
-	constructor(renderer, scene, onButton) {
-		this.onButton = onButton
-		this.state = { title: '', track: '', position: '', progress: 0, playing: false, layout: '', backdrop: '', view: '' }
+	// onAction(id): 'prev' | 'play' | 'next' | 'hide' | 'reset' | 'set:<key>:<+1|-1>'
+	constructor(renderer, scene, values, onAction) {
+		this.values = values	// the live settings object
+		this.onAction = onAction
+		this.info = { title: '', track: '', position: '', progress: 0, playing: false, fps: '' }
+		this.tab = 'play'
+		this.page = 0
 		this.hover = null
+		this.buttons = []
 		this.canvas = document.createElement('canvas')
 		this.canvas.width = W
 		this.canvas.height = H
@@ -39,9 +43,6 @@ export class VRPanel {
 			new THREE.PlaneGeometry(SIZE, SIZE * H / W),
 			new THREE.MeshBasicMaterial({ map: this.texture, transparent: true }),
 		)
-		// Tilted up toward the listener, below the line of sight to the score.
-		this.mesh.position.set(0, 0.95, -0.55)
-		this.mesh.rotation.x = -0.65
 		this.mesh.visible = false
 		scene.add(this.mesh)
 		this.raycaster = new THREE.Raycaster()
@@ -51,17 +52,26 @@ export class VRPanel {
 		renderer.xr.addEventListener('sessionend', () => { this.mesh.visible = false })
 	}
 
-	set(values) {
-		for (const [k, v] of Object.entries(values)) {
-			if (this.state[k] !== v) {
-				this.state[k] = v
+	place(height, distance, tiltDegrees) {
+		this.mesh.position.set(0, height, -distance)
+		this.mesh.rotation.x = -THREE.MathUtils.degToRad(tiltDegrees)
+		this.mesh.updateMatrixWorld()
+	}
+
+	set(info) {
+		for (const [k, v] of Object.entries(info)) {
+			if (this.info[k] !== v) {
+				this.info[k] = v
 				this.dirty = true
 			}
 		}
 	}
 
+	refresh() { this.dirty = true }	// settings changed
+
 	toggle() {
 		this.mesh.visible = !this.mesh.visible
+		this.dirty = true
 	}
 
 	// The button a controller points at, and the distance to the panel, or null.
@@ -71,7 +81,7 @@ export class VRPanel {
 		const hit = this.raycaster.intersectObject(this.mesh)[0]
 		if (!hit) return null
 		const x = hit.uv.x * W, y = (1 - hit.uv.y) * H
-		const button = BUTTONS.find(b => x >= b.x && x <= b.x + b.w && y >= b.y && y <= b.y + b.h)
+		const button = this.buttons.find(b => x >= b.x && x <= b.x + b.w && y >= b.y && y <= b.y + b.h)
 		return { button: button?.id ?? null, distance: hit.distance }
 	}
 
@@ -79,8 +89,19 @@ export class VRPanel {
 	select(controller) {
 		const p = this.pointed(controller)
 		if (!p) return false
-		if (p.button) this.onButton(p.button)
+		if (p.button) this.press(p.button)
 		return true
+	}
+
+	press(id) {
+		if (id === 'tab:play' || id === 'tab:settings') {
+			this.tab = id.slice(4)
+		} else if (id === 'page:-1' || id === 'page:+1') {
+			this.page = (this.page + Number(id.slice(5)) + ENTRY_PAGES.length) % ENTRY_PAGES.length
+		} else {
+			this.onAction(id)
+		}
+		this.dirty = true
 	}
 
 	// Per frame: ray lengths and hover. Redraws (a texture upload) only when something changed.
@@ -99,43 +120,68 @@ export class VRPanel {
 	}
 
 	draw() {
-		const ctx = this.ctx, s = this.state
+		const ctx = this.ctx
+		this.buttons = []
 		ctx.clearRect(0, 0, W, H)
-		roundRect(ctx, 0, 0, W, H, 28, 'rgba(10, 12, 22, 0.88)')
+		roundRect(ctx, 0, 0, W, H, 28, 'rgba(10, 12, 22, 0.9)')
 		ctx.textBaseline = 'middle'
 
-		ctx.fillStyle = '#ffffff'
-		ctx.font = 'bold 46px system-ui, sans-serif'
-		ctx.fillText(fit(ctx, s.title || 'SyncTracker', W - 80), 40, 55)
-		ctx.fillStyle = '#9aa7c7'
-		ctx.font = '32px system-ui, sans-serif'
-		ctx.fillText(fit(ctx, s.track, W - 80), 40, 108)
-		ctx.fillText(fit(ctx, s.position, W - 80), 40, 152)
-		roundRect(ctx, 40, 180, W - 80, 8, 4, '#1b2238')
-		roundRect(ctx, 40, 180, (W - 80) * s.progress, 8, 4, '#6f9cff')
+		this.button('tab:play', 30, 24, 220, 70, 'Play', this.tab === 'play')
+		this.button('tab:settings', 262, 24, 250, 70, 'Settings', this.tab === 'settings')
+		this.button('hide', W - 190, 24, 160, 70, 'Hide')
+		if (this.info.fps) this.text(this.info.fps, W - 220, 59, '#9aa7c7', '32px', 'right')
 
-		for (const b of BUTTONS) {
-			roundRect(ctx, b.x, b.y, b.w, b.h, 16, b.id === this.hover ? '#34467a' : '#1b2238')
-			ctx.fillStyle = '#e6ecff'
-			ctx.font = 'bold 40px system-ui, sans-serif'
-			ctx.textAlign = 'center'
-			ctx.fillText(b.label(s), b.x + b.w / 2, b.y + b.h / 2)
-			ctx.textAlign = 'left'
-		}
-		OPTION_ROWS.forEach(([kind, label], i) => {
-			const y = 330 + i * 100 + 40
-			ctx.fillStyle = '#9aa7c7'
-			ctx.font = '36px system-ui, sans-serif'
-			ctx.fillText(label, 40, y)
-			ctx.fillStyle = '#ffffff'
-			ctx.font = 'bold 40px system-ui, sans-serif'
-			ctx.textAlign = 'center'
-			ctx.fillText(s[kind], (390 + 884) / 2, y)
-			ctx.textAlign = 'left'
-		})
+		if (this.tab === 'play') this.drawPlay()
+		else this.drawSettings()
 
 		this.texture.needsUpdate = true
 		this.dirty = false
+	}
+
+	drawPlay() {
+		const s = this.info
+		this.text(fit(this.ctx, s.title || 'SyncTracker', W - 80, 'bold 44px system-ui, sans-serif'), 40, 140, '#fff', 'bold 44px')
+		this.text(fit(this.ctx, [s.track, s.position].filter(Boolean).join('   ·   '), W - 80, '30px system-ui, sans-serif'), 40, 192, '#9aa7c7', '30px')
+		roundRect(this.ctx, 40, 222, W - 80, 8, 4, '#1b2238')
+		roundRect(this.ctx, 40, 222, (W - 80) * s.progress, 8, 4, '#6f9cff')
+		this.button('prev', 40, 252, 290, 88, 'Prev')
+		this.button('play', 367, 252, 290, 88, s.playing ? 'Pause' : 'Play')
+		this.button('next', 694, 252, 290, 88, 'Next')
+		MAIN.forEach((setting, i) => this.settingRow(setting, 370 + i * ROW_H))
+	}
+
+	drawSettings() {
+		const page = ENTRY_PAGES[this.page]
+		this.text(page.group, 40, 140, '#6f9cff', 'bold 32px')
+		page.entries.forEach((setting, i) => this.settingRow(setting, 172 + i * ROW_H))
+		const y = H - 96
+		this.button('page:-1', 40, y, 110, 72, '◀')
+		this.text(`Page ${this.page + 1} / ${ENTRY_PAGES.length}`, 280, y + 36, '#9aa7c7', '32px', 'center')
+		this.button('page:+1', 410, y, 110, 72, '▶')
+		this.button('reset', W - 330, y, 290, 72, 'Reset all')
+	}
+
+	// Label, ◀, value, ▶ for one setting.
+	settingRow(setting, y) {
+		this.text(setting.label, 40, y + 38, '#9aa7c7', '32px')
+		this.button(`set:${setting.key}:-1`, 420, y, 100, 76, '◀')
+		this.text(formatValue(setting, this.values[setting.key]), (520 + 884) / 2, y + 38, '#fff', 'bold 36px', 'center')
+		this.button(`set:${setting.key}:+1`, 884, y, 100, 76, '▶')
+	}
+
+	button(id, x, y, w, h, label, active = false) {
+		this.buttons.push({ id, x, y, w, h })
+		roundRect(this.ctx, x, y, w, h, 16, id === this.hover ? '#34467a' : active ? '#2a3a66' : '#1b2238')
+		this.text(label, x + w / 2, y + h / 2, active ? '#fff' : '#e6ecff', 'bold 36px', 'center')
+	}
+
+	text(text, x, y, color, size, align = 'left') {
+		const ctx = this.ctx
+		ctx.fillStyle = color
+		ctx.font = `${size} system-ui, sans-serif`
+		ctx.textAlign = align
+		ctx.fillText(text, x, y)
+		ctx.textAlign = 'left'
 	}
 }
 
@@ -146,8 +192,9 @@ function roundRect(ctx, x, y, w, h, r, fill) {
 	ctx.fill()
 }
 
-// Truncate text with an ellipsis to fit a width.
-function fit(ctx, text, width) {
+// Truncate text with an ellipsis to fit a width, in the given font.
+function fit(ctx, text, width, font) {
+	ctx.font = font
 	if (ctx.measureText(text).width <= width) return text
 	while (text.length > 1 && ctx.measureText(text + '…').width > width) text = text.slice(0, -1)
 	return text + '…'

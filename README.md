@@ -3,8 +3,8 @@
 A WebXR tracker-module player. MOD, S3M, XM and IT music, with the module's score (patterns,
 rows, channels) laid out in space around you and driving demoscene-style visuals.
 
-Status: plays in a flat page and in VR (Quest), with selectable layouts, backdrops and views,
-a VR control panel, and a module library.
+Status: plays in a flat page and in VR (Quest), with selectable layouts, backdrops, note
+shapes and views, a VR menu with every setting, and a module library.
 
 ## What it does
 
@@ -13,18 +13,29 @@ each note lands there as you hear it. A note's lift off its lane is its pitch, i
 instrument, its thickness its volume. Strips across the lanes mark beats (4 rows) and bars
 (16 rows). A pad per lane flashes when the channel plays.
 
-Choices, on the page and on the VR panel (remembered per browser):
+Choices (on the page, and on the VR menu's Play tab):
 
 - **Layout**: *Fan* (lanes radiating out in front), *Highway* (parallel lanes), *Wheel*
   (a disc, one ring per channel, rows turning down to the play point), *Tube* (channels
-  around a tube you look down).
-- **Backdrop**: *Tunnel* (rings travel toward you, one per beat), *Plasma*, *Copper bars*
-  (Amiga raster bars), *None*. All brighten as notes land.
-- **View**: *In front* (the score as a stage ahead of you), *Around you*, *Tabletop*.
+  around a tube you look down), *Vortex* (a tube narrowing and twisting away), *Tracker*
+  (a wall of columns like a tracker screen, rows scrolling up past the play line).
+- **Backdrop**: *Tunnel*, *Starfield* (warp), *Synthwave* (sun, mountains, grid floor),
+  *Kaleidoscope*, *Nebula*, *Plasma*, *Copper bars*, *None*. All move with the music, not the
+  clock, and brighten as notes land.
+- **Notes**: *Box*, *Gem*, *Ball*, *Tile*, or *Text* (the note names, e.g. `C#5`).
+- **View** presets for where the score sits: *In front*, *Around you*, *Big screen*,
+  *Tabletop*.
 
-In VR a panel at waist height shows the song and position and has Prev / Play-Pause / Next and
-the three choices; point a controller and pull the trigger. The trigger pointed elsewhere
-plays and pauses; the grip hides or shows the panel.
+Everything else is under Settings (the page's Settings section, the VR menu's Settings tab),
+all remembered per browser: score distance/height/scale, rows ahead, row spacing, note width,
+pitch lift, hit rings, beat strips; backdrop fade (how far ahead of you depth-based
+backdrops fade out), brightness, spread, speed, pulse; audio offset (for sync by eye),
+foveation, FPS display; and the menu's height, distance and tilt. The list is in
+`settings.js`; the page and VR controls are generated from it.
+
+In VR: point at the menu and pull the trigger. The trigger elsewhere or A/X plays and pauses;
+the grip or B/Y shows and hides the menu; thumbstick flicks step through layouts (left/right)
+and backdrops (up/down).
 
 ## Run it
 
@@ -50,7 +61,8 @@ it. Re-run it after adding, moving or renaming modules.
 
 ## Code
 
-- `main.js` wires the player, scene, library and VR panel together, holds the choices, and
+- `settings.js`: every setting, with its range and default.
+- `main.js` wires the player, scene, library and VR menu together, applies the settings, and
   keeps the play-position clock. libopenmpt reports where it is *rendering*; the play head
   is that minus the audio output latency, interpolated between row changes.
 - `timeline.js` works out the song as played, the sequence of (order, row) steps following
@@ -60,8 +72,8 @@ it. Re-run it after adding, moving or renaming modules.
   derived from it. Every note is in one instanced mesh built once per song, placed by the
   vertex shaders from a single play-head uniform, so a frame uploads no buffers or textures.
 - `backdrops.js`: the backdrop shaders, on a sphere around the listener.
-- `vr-panel.js`: the VR panel, a canvas texture redrawn only when its content or the hovered
-  button changes.
+- `vr-panel.js`: the VR menu (Play and Settings tabs), a canvas texture redrawn only when its
+  content or the hovered button changes.
 - `library.js`: the library tree.
 - `vendor/chiptune3/` is [chiptune3](https://github.com/DrSnuggles/chiptune) 0.8.9
   (libopenmpt on an AudioWorklet), unmodified.

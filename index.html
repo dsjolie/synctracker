@@ -26,10 +26,17 @@
   #options { display: flex; flex-wrap: wrap; gap: 4px 12px; margin-top: 6px; color: #9aa7c7; }
   select { font: inherit; color: #cdd6f4; background: #1b2238; border: 1px solid #3a4670; border-radius: 4px; }
   #status { margin-top: 6px; color: #9aa7c7; }
+  #settings { margin-top: 8px; border-top: 1px solid #2a3350; padding-top: 6px; }
+  #settings > summary, #library > summary { cursor: pointer; color: #fff; }
+  #settings-body { max-height: calc(100vh - 360px); overflow: hidden auto; }
+  #settings-body h3 { margin: 8px 0 2px; font-size: 13px; color: #6f9cff; }
+  #settings-body label { display: grid; grid-template-columns: 11em 1fr 5em; align-items: center; gap: 8px; color: #9aa7c7; }
+  #settings-body .value { color: #fff; text-align: right; }
+  #settings-body input[type=range] { width: 100%; }
+  #reset { margin-top: 6px; }
   #row { margin-top: 2px; color: #8f8; white-space: pre; overflow-x: auto; }
   #hint { margin-top: 4px; color: #5d6784; }
   #library { margin-top: 8px; border-top: 1px solid #2a3350; padding-top: 6px; }
-  #library > summary { cursor: pointer; color: #fff; }
   #library-count { color: #5d6784; }
   #filter { box-sizing: border-box; width: 100%; margin-top: 4px; font: inherit; color: inherit; background: #0d1120; border: 1px solid #2a3350; border-radius: 4px; padding: 2px 6px; }
   #tree { margin-top: 4px; overflow: hidden auto; max-height: calc(100vh - 300px); min-height: 80px; }
@@ -53,14 +60,16 @@
     <button id="prev" title="Previous library track">Prev</button>
     <button id="next" title="Next library track">Next</button>
   </div>
-  <div id="options">
-    <label>Layout <select id="layout"></select></label>
-    <label>Backdrop <select id="backdrop"></select></label>
-    <label>View <select id="view"></select></label>
-  </div>
+  <div id="options"></div>
   <div id="status">Choose or drop a module, or load one with <code>?mod=&lt;url&gt;</code>.</div>
   <div id="row"></div>
-  <div id="hint">Drag to look around · scroll to zoom · space to pause · in VR: point and pull the trigger on the panel; trigger elsewhere plays/pauses; grip hides the panel</div>
+  <div id="hint">Drag to look around · scroll to zoom · space to pause.
+    In VR: point at the menu and pull the trigger · trigger elsewhere or A/X plays/pauses · grip or B/Y shows/hides the menu · thumbstick flicks: ◀▶ layout, ▲▼ backdrop</div>
+  <details id="settings">
+    <summary>Settings</summary>
+    <div id="settings-body"></div>
+    <button id="reset">Reset all</button>
+  </details>
   <details id="library" open hidden>
     <summary>Library <span id="library-count"></span></summary>
     <input id="filter" type="search" placeholder="Filter by name or folder">
