@@ -20,7 +20,7 @@ Choices (on the page, and on the VR menu's Play tab):
   around a tube you look down), *Vortex* (a tube narrowing and twisting away), *Tracker*
   (a wall of columns like a tracker screen, rows scrolling up past the play line).
 - **Backdrop**: *Tunnel*, *Starfield* (warp), *Synthwave* (sun, mountains, grid floor),
-  *Kaleidoscope*, *Nebula*, *Plasma*, *Copper bars*, *None*. All move with the music, not the
+  *Kaleidoscope*, *Nebula*, *Plasma*, *None*. All move with the music, not the
   clock, and brighten as notes land.
 - **Notes**: *Box*, *Gem*, *Ball*, *Tile*, or *Text* (the note names, e.g. `C#5`).
 - **View** presets for where the score sits: *In front*, *Around you*, *Big screen*,

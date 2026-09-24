@@ -163,24 +163,6 @@ export const BACKDROPS = [
 		`,
 	},
 	{
-		name: 'Copper bars',
-		// Amiga raster bars swinging above the horizon, phased by the beat.
-		shader: /* glsl */ `
-			void main() {
-				vec3 d = normalize(vDir);
-				float e = asin(clamp(d.y, -1.0, 1.0));
-				float beats = TIME / 4.0;
-				vec3 color = vec3(0.0);
-				for (int i = 0; i < 6; i++) {
-					float fi = float(i);
-					float x = (e - 0.45 - 0.28 * sin(beats * 0.7 + fi * 0.8)) / 0.045;
-					color = max(color, palette(fi * 0.16 + 0.05) * max(1.0 - x * x, 0.0));
-				}
-				emit(d, color * (0.16 + PULSE * 0.3));
-			}
-		`,
-	},
-	{
 		name: 'None',
 		shader: /* glsl */ `
 			void main() { gl_FragColor = vec4(0.02, 0.024, 0.04, 1.0); }
